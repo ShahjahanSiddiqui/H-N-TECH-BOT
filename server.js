@@ -1,5 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const cookieParser = require("cookie-parser");
+const { randomUUID } = require("crypto");
 const rateLimit = require("express-rate-limit");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { loadDB, saveDB } = require("./db");
@@ -17,19 +19,30 @@ User Hindi/Hinglish mein baat kare to usi tarah jawab do, English mein kare to E
 });
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static("public"));
 
-// Login hata diya hai abhi ke liye - sabhi visitors ek shared "guest" space use karenge
-const GUEST_ID = "guest";
+// Har browser ko ek anonymous unique ID do (cookie ke through)
+// Isse alag-alag log ki chats alag-alag rahengi, bina login form ke
+app.use((req, res, next) => {
+  let visitorId = req.cookies.visitorId;
+  if (!visitorId) {
+    visitorId = randomUUID();
+    res.cookie("visitorId", visitorId, {
+      maxAge: 1000 * 60 * 60 * 24 * 365, // 1 saal tak yaad rahega
+      httpOnly: true
+    });
+  }
+  req.visitorId = visitorId;
+  next();
+});
 
-// Spam se bachne ke liye
 const chatLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
   message: { error: "Bahut zyada messages bhej diye! Thoda ruk kar try karo." }
 });
 
-// Root pe seedha chat khol do
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/public/chat.html");
 });
@@ -39,14 +52,14 @@ app.get("/", (req, res) => {
 app.get("/api/conversations", (req, res) => {
   const db = loadDB();
   const list = db.conversations
-    .filter(c => c.userId === GUEST_ID)
+    .filter(c => c.userId === req.visitorId)
     .map(c => ({ id: c.id, title: c.title }));
   res.json(list);
 });
 
 app.post("/api/conversations", (req, res) => {
   const db = loadDB();
-  const newConv = { id: Date.now().toString(), userId: GUEST_ID, title: "New Chat", messages: [] };
+  const newConv = { id: Date.now().toString(), userId: req.visitorId, title: "New Chat", messages: [] };
   db.conversations.push(newConv);
   saveDB(db);
   res.json({ id: newConv.id, title: newConv.title });
@@ -54,14 +67,14 @@ app.post("/api/conversations", (req, res) => {
 
 app.get("/api/conversations/:id", (req, res) => {
   const db = loadDB();
-  const conv = db.conversations.find(c => c.id === req.params.id && c.userId === GUEST_ID);
+  const conv = db.conversations.find(c => c.id === req.params.id && c.userId === req.visitorId);
   if (!conv) return res.status(404).json({ error: "Conversation nahi mili" });
   res.json(conv);
 });
 
 app.delete("/api/conversations/:id", (req, res) => {
   const db = loadDB();
-  db.conversations = db.conversations.filter(c => !(c.id === req.params.id && c.userId === GUEST_ID));
+  db.conversations = db.conversations.filter(c => !(c.id === req.params.id && c.userId === req.visitorId));
   saveDB(db);
   res.json({ success: true });
 });
@@ -71,7 +84,7 @@ app.delete("/api/conversations/:id", (req, res) => {
 app.post("/api/chat-stream/:convId", chatLimiter, async (req, res) => {
   try {
     const db = loadDB();
-    const conv = db.conversations.find(c => c.id === req.params.convId && c.userId === GUEST_ID);
+    const conv = db.conversations.find(c => c.id === req.params.convId && c.userId === req.visitorId);
     if (!conv) return res.status(404).json({ error: "Conversation nahi mili" });
 
     const userMessage = req.body.message;
