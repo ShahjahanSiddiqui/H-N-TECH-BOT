@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<title>H & N Tech Chatbot</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --panel: #11161d;
+    --border: #1f2733;
+    --accent: #3ddc97;
+    --accent-dim: #246b4d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --user-bubble: #1c2530;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    display: flex;
+    height: 100vh;
+  }
+
+  #sidebar {
+    width: 220px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  #sidebar h3 { font-size: 0.95rem; margin: 0 0 12px 4px; }
+  #newConvBtn {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    margin-bottom: 12px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  #convList { flex: 1; overflow-y: auto; }
+  .convItem {
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .convItem:hover, .convItem.active { background: var(--user-bubble); color: var(--text); }
+  #logoutBtn {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+  }
+
+  #main { flex: 1; display: flex; flex-direction: column; padding: 24px; max-width: 760px; margin: 0 auto; min-width: 0; }
+
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  header .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  h2 { font-size: 1.2rem; margin: 0; }
+  .tag { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent); background: rgba(61,220,151,0.1); border: 1px solid var(--accent-dim); padding: 2px 8px; border-radius: 4px; margin-left: auto; }
+
+  #chatBox { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; overflow-y: auto; margin-bottom: 14px; }
+  #chatBox::-webkit-scrollbar { width: 6px; }
+  #chatBox::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .msg { margin: 0 0 14px 0; padding: 10px 14px; border-radius: 8px; max-width: 82%; line-height: 1.5; font-size: 0.94rem; }
+  .msg p { margin: 0 0 8px 0; }
+  .msg pre { background: #0a0e13; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; }
+  .msg code { font-family: 'JetBrains Mono', monospace; }
+
+  .user { background: var(--user-bubble); margin-left: auto; border: 1px solid var(--border); }
+  .bot { background: transparent; border-left: 2px solid var(--accent); padding-left: 12px; }
+  .bot::before { content: "H&N Bot"; display: block; font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--accent); margin-bottom: 4px; letter-spacing: 0.05em; }
+
+  .copyBtn { display: inline-block; margin-top: 6px; font-size: 0.7rem; color: var(--text-dim); cursor: pointer; border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; }
+  .copyBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+  .cursor::after { content: "▌"; color: var(--accent); animation: blink 0.9s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #inputArea { display: flex; gap: 8px; }
+  #userInput { flex: 1; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-family: 'Space Grotesk', sans-serif; font-size: 0.94rem; outline: none; }
+  #userInput:focus { border-color: var(--accent-dim); }
+  button#sendBtn { padding: 12px 22px; border: none; background: var(--accent); color: #06140d; font-weight: 700; border-radius: 8px; cursor: pointer; font-family: 'Space Grotesk', sans-serif; }
+  button#sendBtn:hover { background: #4fe8aa; }
+  button#sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .errorBanner { background: #3a1c1c; border: 1px solid #ff6b6b; color: #ff8787; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 10px; display: none; }
+
+  @media (max-width: 700px) {
+    #sidebar { display: none; }
+    #main { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h3>Conversations</h3>
+  <button id="newConvBtn" onclick="createNewConversation()">+ New Chat</button>
+  <div id="convList"></div>
+  <button id="logoutBtn" onclick="logout()">Logout (<span id="usernameLabel"></span>)</button>
+</div>
+
+<div id="main">
+  <header>
+    <span class="dot"></span>
+    <h2>H & N Tech Chatbot</h2>
+    <span class="tag">AI Assistant</span>
+  </header>
+
+  <div class="errorBanner" id="errorBanner"></div>
+  <div id="chatBox"></div>
+
+  <div id="inputArea">
+    <input type="text" id="userInput" placeholder="Kuch bhi pucho..." onkeypress="if(event.key==='Enter') sendMessage()">
+    <button id="sendBtn" onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+let currentConvId = null;
+
+async function init() {
+  const meRes = await fetch("/api/me");
+  const me = await meRes.json();
+  if (!me.loggedIn) {
+    window.location.href = "/login.html";
+    return;
+  }
+  document.getElementById("usernameLabel").textContent = me.username;
+  await loadConversations();
+}
+
+async function loadConversations() {
+  const res = await fetch("/api/conversations");
+  const list = await res.json();
+  const convList = document.getElementById("convList");
+  convList.innerHTML = "";
+
+  if (list.length === 0) {
+    await createNewConversation();
+    return;
+  }
+
+  list.forEach(conv => {
+    const div = document.createElement("div");
+    div.className = "convItem" + (conv.id === currentConvId ? " active" : "");
+    div.textContent = conv.title;
+    div.onclick = () => openConversation(conv.id);
+    convList.appendChild(div);
+  });
+
+  if (!currentConvId) openConversation(list[0].id);
+}
+
+async function createNewConversation() {
+  const res = await fetch("/api/conversations", { method: "POST" });
+  const conv = await res.json();
+  currentConvId = conv.id;
+  document.getElementById("chatBox").innerHTML = "";
+  await loadConversations();
+}
+
+async function openConversation(id) {
+  currentConvId = id;
+  const res = await fetch("/api/conversations/" + id);
+  const conv = await res.json();
+
+  const chatBox = document.getElementById("chatBox");
+  chatBox.innerHTML = "";
+  conv.messages.forEach(m => renderMessage(m.content, m.role));
+
+  document.querySelectorAll(".convItem").forEach(el => {
+    el.classList.toggle("active", el.textContent === conv.title);
+  });
+}
+
+function renderMessage(text, role) {
+  const chatBox = document.getElementById("chatBox");
+  const div = document.createElement("div");
+  div.className = "msg " + (role === "bot" ? "bot" : "user");
+
+  if (role === "bot") {
+    div.innerHTML = marked.parse(text);
+    addCopyButton(div, text);
+  } else {
+    div.textContent = text;
+  }
+
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  return div;
+}
+
+function addCopyButton(div, text) {
+  const copyBtn = document.createElement("span");
+  copyBtn.className = "copyBtn";
+  copyBtn.textContent = "Copy";
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(text);
+    copyBtn.textContent = "Copied!";
+    setTimeout(() => copyBtn.textContent = "Copy", 1500);
+  };
+  div.appendChild(copyBtn);
+}
+
+async function sendMessage() {
+  const input = document.getElementById("userInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const errorBanner = document.getElementById("errorBanner");
+  const message = input.value.trim();
+  if (!message || !currentConvId) return;
+
+  errorBanner.style.display = "none";
+  renderMessage(message, "user");
+  input.value = "";
+  sendBtn.disabled = true;
+
+  const chatBox = document.getElementById("chatBox");
+  const botDiv = document.createElement("div");
+  botDiv.className = "msg bot cursor";
+  chatBox.appendChild(botDiv);
+
+  try {
+    const response = await fetch("/api/chat-stream/" + currentConvId, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
+    });
+
+    if (response.status === 429) {
+      const data = await response.json();
+      errorBanner.textContent = data.error;
+      errorBanner.style.display = "block";
+      botDiv.remove();
+      sendBtn.disabled = false;
+      return;
+    }
+
+    if (response.status === 401) {
+      window.location.href = "/login.html";
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      fullText += decoder.decode(value, { stream: true });
+      botDiv.innerHTML = marked.parse(fullText);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    botDiv.classList.remove("cursor");
+    addCopyButton(botDiv, fullText);
+    await loadConversations(); // title update ho sakta hai pehle message ke baad
+
+  } catch (err) {
+    botDiv.textContent = "Error: server se baat nahi ho payi.";
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+async function logout() {
+  await fetch("/api/logout", { method: "POST" });
+  window.location.href = "/login.html";
+}
+
+init();
+</script>
+
+</body>
+</html>

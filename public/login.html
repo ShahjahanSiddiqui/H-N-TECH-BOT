@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<title>Login - H & N Tech</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap');
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .box {
+    background: #11161d;
+    border: 1px solid #1f2733;
+    border-radius: 10px;
+    padding: 32px;
+    width: 320px;
+  }
+  h2 { margin-top: 0; text-align: center; }
+  input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    border: 1px solid #1f2733;
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: #3ddc97;
+    color: #06140d;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 4px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .toggle {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #8b949e;
+    cursor: pointer;
+  }
+  .error { color: #ff6b6b; font-size: 0.85rem; margin-bottom: 8px; min-height: 18px; }
+</style>
+</head>
+<body>
+
+<div class="box">
+  <h2 id="formTitle">Login</h2>
+  <div class="error" id="errorMsg"></div>
+  <input type="text" id="username" placeholder="Username">
+  <input type="password" id="password" placeholder="Password">
+  <button id="submitBtn" onclick="submitForm()">Login</button>
+  <div class="toggle" id="toggleText" onclick="toggleMode()">Account nahi hai? Signup karo</div>
+</div>
+
+<script>
+let mode = "login";
+
+function toggleMode() {
+  mode = mode === "login" ? "signup" : "login";
+  document.getElementById("formTitle").textContent = mode === "login" ? "Login" : "Signup";
+  document.getElementById("submitBtn").textContent = mode === "login" ? "Login" : "Signup";
+  document.getElementById("toggleText").textContent = mode === "login" ? "Account nahi hai? Signup karo" : "Pehle se account hai? Login karo";
+  document.getElementById("errorMsg").textContent = "";
+}
+
+async function submitForm() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const errorMsg = document.getElementById("errorMsg");
+  errorMsg.textContent = "";
+
+  if (!username || !password) {
+    errorMsg.textContent = "Username aur password dono bharo";
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/" + mode, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorMsg.textContent = data.error || "Kuch galat ho gaya";
+      return;
+    }
+
+    window.location.href = "/chat.html";
+  } catch (err) {
+    errorMsg.textContent = "Server se connect nahi ho paya";
+  }
+}
+</script>
+
+</body>
+</html>
